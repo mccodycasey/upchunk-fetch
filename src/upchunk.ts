@@ -148,6 +148,10 @@ type UploadPredOptions = {
   attempts: number;
   attemptCount: number;
 };
+
+//
+// xhr fetch
+//
 const isSuccessfulChunkUpload = (
   res: XhrResponse | undefined,
   _options?: any
@@ -170,6 +174,7 @@ const isFailedChunkUpload = (
 };
 
 type EventName =
+  | 'fetchDetail'
   | 'attempt'
   | 'attemptFailure'
   | 'chunkSuccess'
@@ -198,10 +203,12 @@ export interface UpChunkOptions {
   dynamicChunkSize?: boolean;
   maxChunkSize?: number;
   minChunkSize?: number;
+  fetchFunction?: typeof fetch;
 }
 
 export class UpChunk {
   public static createUpload(options: UpChunkOptions) {
+
     return new UpChunk(options);
   }
 
@@ -213,6 +220,7 @@ export class UpChunk {
   public delayBeforeAttempt: number;
   public retryCodes: number[];
   public dynamicChunkSize: boolean;
+  public fetchFunction: typeof fetch;
   protected chunkedStreamIterable: ChunkedStreamIterable;
   protected chunkedStreamIterator;
 
@@ -451,18 +459,63 @@ export class UpChunk {
     });
   }
 
+
+  //
+  // xhr fetch
+  //
+  // private xhrPromise(options: XhrUrlConfig): Promise<XhrResponse> {
+  //   const beforeSend = (xhrObject: XMLHttpRequest) => {
+  //     xhrObject.upload.onprogress = (event: ProgressEvent) => {
+  //       const remainingChunks = this.totalChunks - this.chunkCount;
+  //       // const remainingBytes = this.file.size-(this.nextChunkRangeStart+event.loaded);
+  //       const percentagePerChunk =
+  //         (this.file.size - this.nextChunkRangeStart) /
+  //         this.file.size /
+  //         remainingChunks;
+  //       const successfulPercentage = this.nextChunkRangeStart / this.file.size;
+  //       const currentChunkProgress =
+  //         event.loaded / (event.total ?? this.chunkByteSize);
+  //       const chunkPercentage = currentChunkProgress * percentagePerChunk;
+  //       this.dispatch(
+  //         'progress',
+  //         Math.min((successfulPercentage + chunkPercentage) * 100, 100)
+  //       );
+  //     };
+  //   };
+  //
+  //   return new Promise((resolve, reject) => {
+  //     this.currentXhr = xhr({ ...options, beforeSend }, (err, resp) => {
+  //       this.currentXhr = undefined;
+  //       if (err) {
+  //         return reject(err);
+  //       }
+  //
+  //       return resolve(resp);
+  //     });
+  //   });
+  // }
+
   private xhrPromise(options: XhrUrlConfig): Promise<XhrResponse> {
+
+    this.dispatch('fetchDetail', {
+      options: options,
+    });
+
     const beforeSend = (xhrObject: XMLHttpRequest) => {
+
+      this.dispatch('fetchDetail', {
+        xhrObject: xhrObject,
+      });
+
       xhrObject.upload.onprogress = (event: ProgressEvent) => {
         const remainingChunks = this.totalChunks - this.chunkCount;
-        // const remainingBytes = this.file.size-(this.nextChunkRangeStart+event.loaded);
         const percentagePerChunk =
           (this.file.size - this.nextChunkRangeStart) /
           this.file.size /
           remainingChunks;
         const successfulPercentage = this.nextChunkRangeStart / this.file.size;
         const currentChunkProgress =
-          event.loaded / (event.total ?? this.chunkByteSize);
+          event.loaded / (event.total || this.chunkByteSize);
         const chunkPercentage = currentChunkProgress * percentagePerChunk;
         this.dispatch(
           'progress',
@@ -472,16 +525,35 @@ export class UpChunk {
     };
 
     return new Promise((resolve, reject) => {
-      this.currentXhr = xhr({ ...options, beforeSend }, (err, resp) => {
-        this.currentXhr = undefined;
-        if (err) {
-          return reject(err);
-        }
 
-        return resolve(resp);
+      const requestOptions: RequestInit = {
+        method: options.method,
+        headers: options.headers,
+        // Additional configuration options...
+      };
+
+      this.dispatch('fetchDetail', {
+        options1: options,
+        requestOptions: requestOptions,
       });
+
+      fetch(options.url, requestOptions)
+        .then(response => {
+          if (response.ok) {
+            return response.json();
+          } else {
+            throw new Error('Request failed with status: ' + response.status);
+          }
+        })
+        .then(data => {
+          resolve(data);
+        })
+        .catch(error => {
+          reject(error);
+        });
     });
   }
+
 
   /**
    * Send chunk of the file with appropriate headers
@@ -503,14 +575,45 @@ export class UpChunk {
       chunkSize: this.chunkSize,
     });
 
-    return this.xhrPromise({
-      headers,
-      url: this.endpointValue,
-      method: this.method,
-      body: chunk,
+    this.dispatch('fetchDetail', {
+      headers: headers,
     });
+
+    // return this.xhrPromise({
+    //   headers,
+    //   url: this.endpointValue,
+    //   method: this.method,
+    //   body: chunk,
+    // });
+
+    //
+    // fetch xhr
+    //
+    const requestOptions: RequestInit = {
+      method: this.method,
+      headers: headers,
+      body: chunk,
+    };
+
+    return this.fetchPromise(this.endpointValue, requestOptions);
   }
 
+  private async fetchPromise(url: string, options: RequestInit): Promise<XhrResponse> {
+    console.log("url 00", url)
+    console.log("options 00", options)
+    return fetch(url, options)
+      .then(response => {
+        if (response.ok) {
+          return response.json();
+        } else {
+          throw new Error('Request failed with status: ' + response.status);
+        }
+      });
+  }
+
+
+
+  /// getting stuck here - failing
   protected async sendChunkWithRetries(chunk: Blob): Promise<boolean> {
     // What to do if a chunk was successfully uploaded
     const successfulChunkUploadCb = async (res: XhrResponse, _chunk?: Blob) => {
@@ -556,7 +659,7 @@ export class UpChunk {
       this.dispatch('error', {
         message: `Server responded with ${
           (res as XhrResponse).statusCode
-        }. Stopping upload.`,
+        }. Stopping upload. TEST ETS TES`,
         chunk: this.chunkCount,
         attempts: this.attemptCount,
       });
