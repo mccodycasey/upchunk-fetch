@@ -276,7 +276,10 @@ delete upload;
 ```
 
 ## Credit
+Upchunk=fetch was forked from the mux repository and authored by Matthew McClure <m@mux.com> .
 
 The original idea for this came from the awesome [huge uploader](https://github.com/Buzut/huge-uploader) project, which is what you need if you're looking to do multipart form data uploads. 👏
 
 Also, @gabrielginter ported upchunk to [Flutter](https://github.com/gabrielginter/flutter-upchunk).
+
+
