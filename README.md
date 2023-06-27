@@ -1,20 +1,10 @@
-<p align="center">
-  <a href="https://mux.com/">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://user-images.githubusercontent.com/360826/233653989-11cd8603-c20f-4008-8bf7-dc15b743c52b.svg">
-      <source media="(prefers-color-scheme: light)" srcset="https://user-images.githubusercontent.com/360826/233653583-50dda726-cbe7-4182-a113-059a91ae83e6.svg">
-      <img alt="Mux Logo" src="https://user-images.githubusercontent.com/360826/233653583-50dda726-cbe7-4182-a113-059a91ae83e6.svg">
-    </picture>
-    <h1 align="center">UpChunk</h1>
-  </a>
-</p>
 
-<img src="https://github.com/muxinc/upchunk/workflows/CI/badge.svg" alt="Build Status">
+
 
 UpChunk uploads chunks of files! It's a JavaScript module for handling large file uploads via chunking and making a `put` request for each chunk with the correct range request headers. Uploads can be paused and resumed, they're fault tolerant,
 and it should work just about anywhere.
 
-UpChunk is designed to be used with [Mux](https://mux.com) direct uploads, but should work with any server that supports resumable uploads in the same manner. This library will:
+UpChunk supports resumable uploads. This library will:
 
 - Split a file into chunks (in multiples of 256KB).
 - Make a `PUT` request for each chunk, specifying the correct `Content-Length` and `Content-Range` headers for each one.
@@ -26,19 +16,19 @@ UpChunk is designed to be used with [Mux](https://mux.com) direct uploads, but s
 ### NPM
 
 ```
-npm install --save @mux/upchunk
+npm install upchunk-fetch
 ```
 
 ### Yarn
 
 ```
-yarn add @mux/upchunk
+yarn add upchunk-fetch
 ```
 
 ### Script Tags
 
 ```
-<script src="https://unpkg.com/@mux/upchunk@2"></script>
+<script src="https://unpkg.com/upchunk-fetch"></script>
 ```
 
 ## Basic Usage
@@ -47,29 +37,12 @@ yarn add @mux/upchunk
 
 You'll need to have a route in your application that returns an upload URL from Mux. If you're using the [Mux Node SDK](https://github.com/muxinc/mux-node-sdk), you might do something that looks like this.
 
-```javascript
-const Mux = require('@mux/mux-node');
-const { Video } = new Mux();
 
-module.exports = async (req, res) => {
-  // This ultimately just makes a POST request to https://api.mux.com/video/v1/uploads with the supplied options.
-  const upload = await Video.Uploads.create({
-    cors_origin: 'https://your-app.com',
-    new_asset_settings: {
-      playback_policy: 'public',
-    },
-  });
 
-  // Save the Upload ID in your own DB somewhere, then
-  // return the upload URL to the end-user.
-  res.end(upload.url);
-};
-```
 
-### Then, in the browser with plain Javascript
 
 ```javascript
-import * as UpChunk from '@mux/upchunk';
+import * as UpChunk from 'upchunk-fetch';
 
 // Pretend you have an HTML page with an input like: <input id="picker" type="file" />
 const picker = document.getElementById('picker');
@@ -105,7 +78,7 @@ picker.onchange = () => {
 
 ```javascript
 import React, { useState } from 'react';
-import * as UpChunk from '@mux/upchunk';
+import * as UpChunk from 'upchunk-fetch';
 
 function Page() {
   const [progress, setProgress] = useState(0);
